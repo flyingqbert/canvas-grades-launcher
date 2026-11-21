@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvas Grades</title>
+  <meta name="theme-color" content="#0b57d0">
+  <meta name="apple-mobile-web-app-title" content="Grades">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #f6f7f9; --card: #ffffff; --text: #1f2328; --muted: #656d76;
+      --border: #d8dee4; --accent: #0b57d0; --late: #b3261e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; justify-content: center; padding: 32px 16px;
+    }
+    main { width: 100%; max-width: 420px; }
+    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+    .brand img { width: 64px; height: 64px; border-radius: 16px; }
+    h1 { font-size: 26px; margin: 0; }
+    .tag { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+    .card h2 { font-size: 17px; margin: 0 0 6px; }
+    .card p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    input {
+      width: 100%; min-height: 48px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px;
+      font: inherit; font-size: 15px; background: #fff; color: var(--text);
+    }
+    input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .btn {
+      display: flex; align-items: center; justify-content: center; width: 100%; min-height: 50px; margin-top: 12px;
+      border: none; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 600;
+      text-decoration: none; cursor: pointer;
+    }
+    .btn.secondary { background: none; color: var(--accent); border: 1px solid var(--border); }
+    .error { color: var(--late); font-size: 14px; margin: 8px 0 0; }
+    .error[hidden], [hidden] { display: none !important; }
+    ol { margin: 0; padding-left: 20px; font-size: 15px; }
+    ol li { margin: 4px 0; }
+    .note { font-size: 13px; color: var(--muted); margin-top: 16px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <img src="icons/icon-192.png" alt="">
+      <div>
+        <h1>Canvas Grades</h1>
+        <p class="tag">Home-screen launcher</p>
+      </div>
+    </div>
+
+    <!-- Step 1: save this phone's link (only shown until a link is saved) -->
+    <section class="card" id="setup" hidden>
+      <h2>Connect this phone</h2>
+      <p>Paste your Canvas Grades web app link. It's saved on this phone only and never leaves it.</p>
+      <form id="setup-form">
+        <label for="app-url">Web app link</label>
+        <input id="app-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+               placeholder="https://script.google.com/macros/s/…/exec" required>
+        <p class="error" id="setup-error" hidden>That doesn't look like a Google Apps Script web app link (it should start with https://script.google.com/macros/s/ and end with /exec).</p>
+        <button class="btn" type="submit">Save link</button>
+      </form>
+    </section>
+
+    <!-- Step 2: open, and add to the home screen -->
+    <section id="ready" hidden>
+      <a class="btn" id="open-link" href="#">Open Canvas Grades</a>
+
+      <div class="card" style="margin-top:16px">
+        <h2>Add to your home screen</h2>
+        <div id="ios-steps" hidden>
+          <ol>
+            <li>In Safari, tap the <strong>Share</strong> button.</li>
+            <li>Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+          </ol>
+        </div>
+        <div id="android-steps" hidden>
+          <ol>
+            <li>In Chrome, tap <strong>⋮</strong> (top right).</li>
+            <li>Choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.</li>
+          </ol>
+        </div>
+        <div id="other-steps" hidden>
+          <p>Open this page on your phone (Safari on iPhone, Chrome on Android) to add it to the home screen.</p>
+        </div>
+      </div>
+
+      <button class="btn secondary" type="button" id="change-link">Change saved link</button>
+    </section>
+
+    <p class="note">Tapping the home-screen icon opens your grades page directly.</p>
+  </main>
+
+  <script>
+    var KEY = 'canvasGradesAppUrl';
+    var VALID = /^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/s\/[\w-]+\/(exec|dev)(\?.*)?$/;
+
+    function getSaved() {
+      try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
+    }
+    function save(url) {
+      try { localStorage.setItem(KEY, url); return true; } catch (e) { return false; }
+    }
+
+    var saved = getSaved();
+    var launched = new URLSearchParams(location.search).has('launch');
+
+    // Opened from the home-screen icon: go straight to the grades page.
+    if (launched && saved && VALID.test(saved)) {
+      location.replace(saved);
+    } else {
+      showPage();
+    }
+
+    function showPage() {
+      var ua = navigator.userAgent;
+      var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var isAndroid = /Android/.test(ua);
+      document.getElementById('ios-steps').hidden = !isIOS;
+      document.getElementById('android-steps').hidden = !isAndroid;
+      document.getElementById('other-steps').hidden = isIOS || isAndroid;
+
+      if (saved && VALID.test(saved)) {
+        showReady(saved);
+      } else {
+        document.getElementById('setup').hidden = false;
+      }
+    }
+
+    function showReady(url) {
+      document.getElementById('setup').hidden = true;
+      document.getElementById('ready').hidden = false;
+      document.getElementById('open-link').href = url;
+      // iPhone saves the page's current address to the home screen, so point it
+      // at the launch address (Android uses start_url from the manifest).
+      if (!launched) history.replaceState(null, '', './?launch');
+    }
+
+    document.getElementById('setup-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var url = document.getElementById('app-url').value.trim();
+      var ok = VALID.test(url);
+      document.getElementById('setup-error').hidden = ok;
+      if (!ok) return;
+      if (!save(url)) {
+        document.getElementById('setup-error').textContent =
+          "This browser blocked saving the link (private browsing?). Try again in a normal tab.";
+        document.getElementById('setup-error').hidden = false;
+        return;
+      }
+      saved = url;
+      showReady(url);
+    });
+
+    document.getElementById('change-link').addEventListener('click', function () {
+      document.getElementById('ready').hidden = true;
+      document.getElementById('setup').hidden = false;
+      document.getElementById('app-url').value = saved;
+      history.replaceState(null, '', './');
+    });
+  </script>
+</body>
+</html>
