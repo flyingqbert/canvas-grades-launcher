@@ -3,6 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    // Opened from the home-screen icon: forward to the saved web app link
+    // before anything else on this page loads. The splash below stays on
+    // screen until the grades page is ready to draw.
+    (function () {
+      var VALID = /^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/s\/[\w-]+\/(exec|dev)(\?.*)?$/;
+      var saved = '';
+      try { saved = localStorage.getItem('canvasGradesAppUrl') || ''; } catch (e) {}
+      if (/[?&]launch(=|&|$)/.test(location.search) && VALID.test(saved)) {
+        window.cgRedirecting = true;
+        document.documentElement.className = 'launching';
+        location.replace(saved);
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://script.google.com">
   <title>Canvas Grades</title>
   <meta name="theme-color" content="#0b57d0">
   <meta name="apple-mobile-web-app-title" content="Grades">
@@ -45,9 +61,30 @@
     ol { margin: 0; padding-left: 20px; font-size: 15px; }
     ol li { margin: 4px 0; }
     .note { font-size: 13px; color: var(--muted); margin-top: 16px; text-align: center; }
+    /* Splash shown only while forwarding from the home-screen icon */
+    #splash { display: none; }
+    html.launching main { display: none; }
+    html.launching body { align-items: center; padding: 0; }
+    html.launching #splash {
+      display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center;
+    }
+    #splash img { width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 6px 20px rgba(11, 87, 208, .25); }
+    #splash p { margin: 0; color: var(--muted); font-size: 15px; }
+    .spinner {
+      width: 26px; height: 26px; border-radius: 50%; border: 3px solid #c8d3e6; border-top-color: var(--accent);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
   </style>
 </head>
 <body>
+  <div id="splash" role="status" aria-live="polite">
+    <img src="icons/icon-192.png" alt="">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Opening Canvas Grades…</p>
+  </div>
+
   <main>
     <div class="brand">
       <img src="icons/icon-192.png" alt="">
@@ -113,12 +150,8 @@
     var saved = getSaved();
     var launched = new URLSearchParams(location.search).has('launch');
 
-    // Opened from the home-screen icon: go straight to the grades page.
-    if (launched && saved && VALID.test(saved)) {
-      location.replace(saved);
-    } else {
-      showPage();
-    }
+    // The script at the top of <head> already forwarded launches from the icon.
+    if (!window.cgRedirecting) showPage();
 
     function showPage() {
       var ua = navigator.userAgent;
